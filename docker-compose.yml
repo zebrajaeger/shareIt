@@ -1,0 +1,12 @@
+services:
+  syncit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: text-sync-app:latest
+    container_name: text-sync-container
+    ports:
+      - "3003:3000"
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped

@@ -1,0 +1,14 @@
+# ==== Ignoriere node_modules im gesamten Projekt ====
+**/node_modules
+**/npm-debug.log
+**/yarn-error.log
+
+# ==== Docker-Konfigurationsdateien ? ins Image kopieren ===
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# (optional) IDE-/Editor-Dateien
+.idea
+.vscode
+*.swp

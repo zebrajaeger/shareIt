@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+  <title>PWA Text-Synchronisation</title>
+  <style>
+    /* Einfaches, leichtgewichtiges Styling */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    textarea {
+      width: 90%;
+      height: 300px;
+      margin-bottom: 10px;
+      font-size: 1rem;
+      padding: 10px;
+      box-sizing: border-box;
+      resize: vertical;
+    }
+    button {
+      margin: 5px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Text-Synchronisation</h1>
+
+  <!-- Großes Textfeld -->
+  <textarea id="textfeld" placeholder="Hier Text eingeben..."></textarea>
+
+  <!-- Buttons: Senden, Clipboard senden, Kopieren -->
+  <div class="button-group">
+    <button id="btn-senden">Senden</button>
+    <button id="btn-clipboard-senden">Zwischenablage senden</button>
+    <button id="btn-kopieren">Kopieren</button>
+  </div>
+
+  <script>
+    // === WebSocket-Verbindung herstellen ===
+    // Verwende dasselbe Host/Port, von dem die Seite ausgeliefert wurde
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = protocol + '//' + location.host; 
+    const socket = new WebSocket(wsUrl);
+
+    // Referenzen auf DOM-Elemente
+    const textfeld = document.getElementById('textfeld');
+    const btnSenden = document.getElementById('btn-senden');
+    const btnClipboardSenden = document.getElementById('btn-clipboard-senden');
+    const btnKopieren = document.getElementById('btn-kopieren');
+
+    // === Empfangene WebSocket-Nachrichten ===
+    socket.addEventListener('message', (event) => {
+      // Sobald eine Nachricht (aktueller Text) kommt, aktualisiere das Textfeld
+      textfeld.value = event.data;
+    });
+
+    socket.addEventListener('open', () => {
+      console.log('WebSocket verbunden:', wsUrl);
+      // Nach Verbindungsaufbau wird der Server automatisch den aktuellen Wert schicken
+    });
+
+    socket.addEventListener('close', () => {
+      console.log('WebSocket getrennt');
+    });
+
+    socket.addEventListener('error', (err) => {
+      console.error('WebSocket-Fehler:', err);
+    });
+
+    // === Button „Senden“: Inhalt des Textfelds an den Server schicken ===
+    btnSenden.addEventListener('click', () => {
+      const textInhalt = textfeld.value;
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(textInhalt);
+      } else {
+        alert('WebSocket nicht verbunden.');
+      }
+    });
+
+    // === Button „Zwischenablage senden“: Lesen aus Clipboard und sofort senden ===
+    btnClipboardSenden.addEventListener('click', async () => {
+      try {
+        // Auslesen der System-Zwischenablage (benötigt Benutzer-Geste, HTTPS vorausgesetzt)
+        const clipboardText = await navigator.clipboard.readText();
+        if (clipboardText !== null) {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(clipboardText);
+          } else {
+            alert('WebSocket nicht verbunden.');
+          }
+        }
+      } catch (err) {
+        console.error('Fehler beim Lesen der Zwischenablage:', err);
+        alert('Konnte nicht aus der Zwischenablage lesen.');
+      }
+    });
+
+    // === Button „Kopieren“: Inhalt des Textfelds in die Zwischenablage kopieren ===
+    btnKopieren.addEventListener('click', async () => {
+      try {
+        const textZumKopieren = textfeld.value;
+        await navigator.clipboard.writeText(textZumKopieren);
+        // Optional: Feedback an den Nutzer
+        btnKopieren.textContent = 'Kopiert!';
+        setTimeout(() => {
+          btnKopieren.textContent = 'Kopieren';
+        }, 1000);
+      } catch (err) {
+        console.error('Fehler beim Kopieren in die Zwischenablage:', err);
+        alert('Konnte nicht in die Zwischenablage kopieren.');
+      }
+    });
+
+    // === Optional: Beim Laden der Seite Fokus direkt ins Textfeld setzen ===
+    window.addEventListener('load', () => {
+      textfeld.focus();
+    });
+  </script>
+</body>
+</html>
