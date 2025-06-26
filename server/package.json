@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev-server": "nodemon server.js",
-    "dev-client": "browser-sync start --proxy \"localhost:3000\" --port 3001 --ws --no-open --files \"../client/**/*.*\""
+    "dev-client": "browser-sync start --proxy \"localhost:3000\" --port 3001 --ws --files \"../client/**/*.*\"",
+    "dev-client-noopen": "browser-sync start --proxy \"localhost:3000\" --port 3001 --ws --no-open --files \"../client/**/*.*\""
   },
   "dependencies": {
     "express": "5.1.0",

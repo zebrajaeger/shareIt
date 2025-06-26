@@ -1,0 +1,25 @@
+{
+  "tasks.buttons": [
+    {
+      "text": "🚀 dev-all",
+      "task": "dev-all",
+      "color": "yellow",
+      "alignment": "left",         // oder "right"
+      "tooltip": "Starte Server und Client parallel"
+    },
+    {
+      "text": "🟢 server",
+      "task": "dev-server",
+      "color": "green",
+      "alignment": "left",
+      "tooltip": "Nur Server starten"
+    },
+    {
+      "text": "🔵 client",
+      "task": "dev-client",
+      "color": "blue",
+      "alignment": "left",
+      "tooltip": "Nur Client starten"
+    }
+  ]
+}

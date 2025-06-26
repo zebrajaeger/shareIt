@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev-server",
+      "type": "npm",
+      "script": "dev-server",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      },
+      "problemMatcher": [],
+      "detail": "Startet den Node.js-Server mit nodemon"
+    },
+    {
+      "label": "dev-client",
+      "type": "npm",
+      "script": "dev-client",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      },
+      "problemMatcher": [],
+      "detail": "Startet browser-sync für Client-Entwicklung"
+    },
+    {
+      "label": "dev-all",
+      "dependsOn": ["dev-server", "dev-client"],
+      "dependsOrder": "parallel",
+      "problemMatcher": [],
+      "detail": "Startet dev-server und dev-client parallel"
+    }
+  ]
+}
