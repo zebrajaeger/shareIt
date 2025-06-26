@@ -7,11 +7,9 @@
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json" />
-
-  <!-- Optional: Theme-Farbe für Android-Statusleiste -->
   <meta name="theme-color" content="#4A90E2" />
+
   <style>
-    /* Einfaches, leichtgewichtiges Styling */
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
@@ -19,60 +17,38 @@
       flex-direction: column;
       align-items: center;
     }
-    h1 {
-      margin-bottom: 5px;
-    }
+    h1 { margin-bottom: 5px; }
     /* Verbindungs-Statusanzeige */
-    #status-indikator {
-      display: flex;
-      align-items: center;
-      margin-bottom: 15px;
-      font-size: 0.9rem;
-      font-weight: bold;
-    }
-    #status-kreis {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-right: 8px;
-      background-color: gray; /* Standard: unbekannt */
-    }
-    /* Textfeld */
+    #status-indikator { display: flex; align-items: center; margin-bottom: 15px; font-size: 0.9rem; font-weight: bold; }
+    #status-kreis { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; background-color: gray; }
+    #status-kreis.verbunden { background-color: #28a745; }
+    #status-kreis.getrennt { background-color: #dc3545; }
+
     textarea {
-      width: 90%;
-      height: 300px;
+      width: 90%; height: 300px;
       margin-bottom: 10px;
       font-size: 1rem;
       padding: 10px;
       box-sizing: border-box;
       resize: vertical;
     }
-    /* Buttons */
-    button {
-      margin: 5px;
-      padding: 10px 20px;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    .button-group {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-/* Wenn das div sowohl die ID #status-kreis hat als auch die Klasse .verbunden */
-#status-kreis.verbunden {
-  background-color: #28a745; /* grün */
-}
 
-/* Wenn das div sowohl die ID #status-kreis hat als auch die Klasse .getrennt */
-#status-kreis.getrennt {
-  background-color: #dc3545; /* rot */
-}
+    #upload-area {
+      width: 90%; padding: 20px;
+      border: 2px dashed #ccc;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    #upload-area.hover { border-color: #28a745; }
+
+    ul { list-style: none; padding: 0; width: 90%; }
+    ul li { margin: 5px 0; }
+
+    button { margin: 5px; padding: 10px 20px; font-size: 1rem; cursor: pointer; }
   </style>
 </head>
 <body>
-  <h1>Text-Synchronisation</h1>
+  <h1>Text- und Datei-Synchronisation</h1>
 
   <!-- Verbindungs-Statusanzeige -->
   <div id="status-indikator">
@@ -83,11 +59,18 @@
   <!-- Großes Textfeld -->
   <textarea id="textfeld" placeholder="Hier Text eingeben..."></textarea>
 
-  <!-- Buttons: Senden, Clipboard senden, Kopieren -->
+  <!-- Datei-Upload-Bereich -->
+  <div id="upload-area">
+    Datei hierhin ziehen oder Datei auswählen:<br>
+    <input type="file" id="file-input">
+  </div>
+
+  <!-- Liste der Dateien -->
+  <ul id="file-list"></ul>
+
+  <!-- Buttons -->
   <div class="button-group">
     <button id="btn-senden">Senden</button>
-    <button id="btn-clipboard-senden">Zwischenablage senden</button>
-    <button id="btn-kopieren">Kopieren</button>
   </div>
 
   <script>
@@ -95,124 +78,80 @@
     const statusKreis = document.getElementById('status-kreis');
     const statusText = document.getElementById('status-text');
     const textfeld = document.getElementById('textfeld');
-    const btnSenden = document.getElementById('btn-senden');
-    const btnClipboardSenden = document.getElementById('btn-clipboard-senden');
-    const btnKopieren = document.getElementById('btn-kopieren');
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+    const fileListEl = document.getElementById('file-list');
 
-    // === WebSocket-Verbindung herstellen ===
+    // === WebSocket-Verbindung ===
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = protocol + '//' + location.host;
     let socket;
 
     function setStatus(verbunden) {
       if (verbunden) {
-        statusKreis.classList.remove('getrennt');
         statusKreis.classList.add('verbunden');
+        statusKreis.classList.remove('getrennt');
         statusText.textContent = 'Verbunden';
       } else {
-        statusKreis.classList.remove('verbunden');
         statusKreis.classList.add('getrennt');
+        statusKreis.classList.remove('verbunden');
         statusText.textContent = 'Getrennt';
       }
     }
 
     function connectWebSocket() {
       socket = new WebSocket(wsUrl);
-
-      socket.addEventListener('open', () => {
-        // WebSocket ist geöffnet
-        setStatus(true);
-        console.log('WebSocket verbunden:', wsUrl);
-        // Nach Verbindungsaufbau schickt der Server automatisch den aktuellen Wert
-      });
-
-      socket.addEventListener('message', (event) => {
-        // Neue Text-Nachricht vom Server → Textfeld aktualisieren
+      socket.addEventListener('open', () => setStatus(true));
+      socket.addEventListener('message', event => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'file-list') {
+            updateFileList(msg.files);
+            return;
+          }
+        } catch {}
         textfeld.value = event.data;
       });
+      socket.addEventListener('close', () => { setStatus(false); setTimeout(connectWebSocket, 2000); });
+      socket.addEventListener('error', () => setStatus(false));
+    }
+    connectWebSocket();
 
-      socket.addEventListener('close', () => {
-        // Verbindung geschlossen → Status auf getrennt setzen
-        setStatus(false);
-        console.log('WebSocket getrennt. Versuche neu zu verbinden in 2 Sekunden...');
-        // Automatischer Reconnect nach 2 Sekunden
-        setTimeout(connectWebSocket, 2000);
-      });
+    // === Text senden ===
+    document.getElementById('btn-senden').addEventListener('click', () => {
+      if (socket.readyState === WebSocket.OPEN) socket.send(textfeld.value);
+      else alert('WebSocket nicht verbunden.');
+    });
 
-      socket.addEventListener('error', (err) => {
-        // Bei einem Fehler → Status auf getrennt setzen
-        setStatus(false);
-        console.error('WebSocket-Fehler:', err);
-        // Connection close oder reconnect-Logik übernimmt das Close-Event
+    // === Datei-Upload ===
+    function uploadFile(file) {
+      const form = new FormData();
+      form.append('file', file);
+      fetch('/upload', { method: 'POST', body: form }).catch(console.error);
+    }
+    uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('hover'); });
+    uploadArea.addEventListener('dragleave', e => { e.preventDefault(); uploadArea.classList.remove('hover'); });
+    uploadArea.addEventListener('drop', e => {
+      e.preventDefault(); uploadArea.classList.remove('hover');
+      Array.from(e.dataTransfer.files).forEach(uploadFile);
+    });
+    fileInput.addEventListener('change', () => Array.from(fileInput.files).forEach(uploadFile));
+
+    // === Liste aktualisieren ===
+    function updateFileList(files) {
+      fileListEl.innerHTML = '';
+      files.forEach(f => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = `/files/${encodeURIComponent(f.name)}`;
+        a.textContent = f.name;
+        li.appendChild(a);
+        fileListEl.appendChild(li);
       });
     }
 
-    // Erste Verbindung aufbauen
-    connectWebSocket();
-
-    // === Button „Senden“: Inhalt des Textfelds an den Server schicken ===
-    btnSenden.addEventListener('click', () => {
-      const textInhalt = textfeld.value;
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(textInhalt);
-      } else {
-        alert('WebSocket nicht verbunden.');
-      }
-    });
-
-    // === Button „Zwischenablage senden“: Lesen aus Clipboard und sofort senden ===
-    btnClipboardSenden.addEventListener('click', async () => {
-      try {
-        const clipboardText = await navigator.clipboard.readText();
-        if (clipboardText !== null) {
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.send(clipboardText);
-          } else {
-            alert('WebSocket nicht verbunden.');
-          }
-        }
-      } catch (err) {
-        console.error('Fehler beim Lesen der Zwischenablage:', err);
-        alert('Konnte nicht aus der Zwischenablage lesen.');
-      }
-    });
-
-    // === Button „Kopieren“: Inhalt des Textfelds in die Zwischenablage kopieren ===
-    btnKopieren.addEventListener('click', async () => {
-      try {
-        const textZumKopieren = textfeld.value;
-        await navigator.clipboard.writeText(textZumKopieren);
-        // Kurzes Feedback an den Nutzer
-        btnKopieren.textContent = 'Kopiert!';
-        setTimeout(() => {
-          btnKopieren.textContent = 'Kopieren';
-        }, 1000);
-      } catch (err) {
-        console.error('Fehler beim Kopieren in die Zwischenablage:', err);
-        alert('Konnte nicht in die Zwischenablage kopieren.');
-      }
-    });
-
-    // Optional: Fokus direkt in das Textfeld setzen
-    window.addEventListener('load', () => {
-      textfeld.focus();
-    });
+    // Fokus direkt in Textfeld
+    window.addEventListener('load', () => textfeld.focus());
   </script>
-
-  <script>
-  // Prüfe, ob der Browser Service Worker unterstützt
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker
-        .register('/service-worker.js')
-        .then((registration) => {
-          console.log('Service Worker registriert mit Scope:', registration.scope);
-        })
-        .catch((error) => {
-          console.error('Service Worker-Registrierung fehlgeschlagen:', error);
-        });
-    });
-  }
-</script>
 </body>
 </html>

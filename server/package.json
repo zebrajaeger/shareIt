@@ -6,14 +6,15 @@
   "scripts": {
     "start": "node server.js",
     "dev-server": "nodemon server.js",
-    "dev-client": "browser-sync start --proxy \"localhost:3000\" --files \"../client/**/*.*\""
+    "dev-client": "browser-sync start --proxy \"localhost:3000\" --port 3001 --ws --no-open --files \"../client/**/*.*\""
   },
   "dependencies": {
     "express": "5.1.0",
+    "multer": "2.0.1",
     "ws": "8.18.2"
   },
   "devDependencies": {
-    "nodemon": "3.1.10",
-    "browser-sync": "3.0.4"
+    "browser-sync": "3.0.4",
+    "nodemon": "3.1.10"
   }
 }
